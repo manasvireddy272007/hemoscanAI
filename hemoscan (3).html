@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HemoScan AI — Anemia Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: rgba(255,255,255,0.07);
+    --accent: #c94f4f;
+    --accent2: #e8876a;
+    --text: #e8e4dc;
+    --muted: #7a7870;
+    --low: #4caf7d;
+    --moderate: #f0a85a;
+    --high: #e05555;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background orbs */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(201,79,79,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    animation: drift 12s ease-in-out infinite alternate;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -200px; right: -200px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(232,135,106,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    animation: drift 15s ease-in-out infinite alternate-reverse;
+  }
+
+  @keyframes drift {
+    from { transform: translate(0,0); }
+    to { transform: translate(60px, 40px); }
+  }
+
+  /* NAV */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 60px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(20px);
+    z-index: 100;
+  }
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    letter-spacing: 0.02em;
+  }
+  .logo span { color: var(--accent); }
+  .nav-tag {
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 20px;
+  }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    padding: 100px 40px 80px;
+    animation: fadeUp 0.8s ease both;
+  }
+  .hero-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2.8rem, 6vw, 5rem);
+    line-height: 1.1;
+    margin-bottom: 20px;
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+  .hero p {
+    color: var(--muted);
+    font-size: 1.05rem;
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* FORM CARD */
+  .form-container {
+    max-width: 780px;
+    margin: 0 auto 80px;
+    padding: 0 24px;
+    animation: fadeUp 0.9s 0.2s ease both;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(201,79,79,0.5), transparent);
+  }
+
+  .section-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  .full { grid-column: 1 / -1; }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  label {
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  input, select {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    padding: 13px 16px;
+    outline: none;
+    transition: border-color 0.25s, background 0.25s;
+    width: 100%;
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus {
+    border-color: rgba(201,79,79,0.5);
+    background: rgba(255,255,255,0.06);
+  }
+  select option { background: #1a1a24; }
+
+  .hint { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+  /* Symptom checkboxes */
+  .symptoms-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .symptom-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    font-size: 0.85rem;
+    color: var(--muted);
+    user-select: none;
+  }
+  .symptom-check:hover { border-color: rgba(201,79,79,0.3); color: var(--text); }
+  .symptom-check input[type=checkbox] { display: none; }
+  .symptom-check .dot {
+    width: 14px; height: 14px;
+    border-radius: 4px;
+    border: 1px solid var(--muted);
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .symptom-check.checked {
+    border-color: rgba(201,79,79,0.5);
+    background: rgba(201,79,79,0.07);
+    color: var(--text);
+  }
+  .symptom-check.checked .dot {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* Genetic history */
+  .genetic-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .genetic-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    color: var(--muted);
+    user-select: none;
+  }
+  .genetic-item:hover { border-color: rgba(201,79,79,0.3); color: var(--text); }
+  .genetic-item.checked {
+    border-color: rgba(201,79,79,0.5);
+    background: rgba(201,79,79,0.07);
+    color: var(--text);
+  }
+  .genetic-item .dot {
+    width: 14px; height: 14px;
+    border-radius: 4px;
+    border: 1px solid var(--muted);
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .genetic-item.checked .dot { background: var(--accent); border-color: var(--accent); }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 36px 0;
+  }
+
+  /* Submit btn */
+  .btn-analyze {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.2s;
+    margin-top: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-analyze::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.5s;
+  }
+  .btn-analyze:hover::after { transform: translateX(100%); }
+  .btn-analyze:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-analyze:active { transform: translateY(0); }
+  .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* LOADING */
+  .loader {
+    display: none;
+    text-align: center;
+    padding: 60px 40px;
+    animation: fadeUp 0.4s ease both;
+  }
+  .pulse-ring {
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    margin: 0 auto 24px;
+    position: relative;
+    animation: pulse-ring 1.4s ease infinite;
+  }
+  .pulse-ring::after {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.3;
+    animation: pulse-ring 1.4s 0.3s ease infinite;
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(0.9); opacity: 1; }
+    70% { transform: scale(1.1); opacity: 0.5; }
+    100% { transform: scale(0.9); opacity: 1; }
+  }
+  .loader p { color: var(--muted); font-size: 0.9rem; letter-spacing: 0.08em; }
+
+  /* RESULT */
+  .result-section {
+    display: none;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .result-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 36px;
+  }
+  .risk-badge {
+    padding: 6px 18px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 500;
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+  .badge-none { background: rgba(76,175,125,0.15); color: var(--low); border: 1px solid rgba(76,175,125,0.3); }
+  .badge-low { background: rgba(76,175,125,0.15); color: var(--low); border: 1px solid rgba(76,175,125,0.3); }
+  .badge-moderate { background: rgba(240,168,90,0.15); color: var(--moderate); border: 1px solid rgba(240,168,90,0.3); }
+  .badge-high { background: rgba(224,85,85,0.15); color: var(--high); border: 1px solid rgba(224,85,85,0.3); }
+
+  .result-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.9rem;
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+  .result-subtitle { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+
+  /* Metrics bar */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 30px;
+  }
+  .metric-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+  }
+  .metric-val {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.6rem;
+    margin-bottom: 4px;
+  }
+  .metric-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .metric-status { font-size: 0.78rem; margin-top: 6px; }
+  .status-normal { color: var(--low); }
+  .status-low { color: var(--high); }
+  .status-borderline { color: var(--moderate); }
+
+  /* Risk gauge */
+  .gauge-wrap {
+    margin: 24px 0;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .gauge-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px; }
+  .gauge-track {
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .gauge-fill {
+    height: 100%;
+    border-radius: 99px;
+    width: 0;
+    transition: width 1.2s cubic-bezier(0.4,0,0.2,1);
+  }
+  .fill-none { background: var(--low); }
+  .fill-low { background: var(--low); }
+  .fill-moderate { background: var(--moderate); }
+  .fill-high { background: linear-gradient(90deg, var(--moderate), var(--high)); }
+  .gauge-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 0.68rem;
+    color: var(--muted);
+  }
+
+  /* Anemia type */
+  .type-card {
+    background: rgba(201,79,79,0.05);
+    border: 1px solid rgba(201,79,79,0.2);
+    border-radius: 14px;
+    padding: 22px;
+    margin-bottom: 24px;
+  }
+  .type-card h4 { font-family: 'DM Serif Display', serif; font-size: 1.1rem; margin-bottom: 6px; color: var(--accent2); }
+  .type-card p { font-size: 0.88rem; color: var(--muted); line-height: 1.6; }
+
+  /* Diet plan */
+  .diet-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-top: 4px;
+  }
+  .diet-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .diet-item .icon { font-size: 1.4rem; margin-bottom: 8px; }
+  .diet-item h5 { font-size: 0.85rem; font-weight: 500; margin-bottom: 4px; }
+  .diet-item p { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+
+  /* Disclaimer */
+  .disclaimer {
+    margin-top: 28px;
+    padding: 16px 20px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .btn-reset {
+    margin-top: 20px;
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--muted);
+    padding: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-reset:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+
+  @media (max-width: 640px) {
+    nav { padding: 20px 24px; }
+    .card { padding: 28px 20px; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .symptoms-grid { grid-template-columns: 1fr 1fr; }
+    .genetic-grid { grid-template-columns: 1fr; }
+    .metrics { grid-template-columns: 1fr; }
+    .diet-grid { grid-template-columns: 1fr; }
+    .hero { padding: 60px 24px 50px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Hemo<span>Scan</span> AI</div>
+  <div class="nav-tag">Early Detection System</div>
+</nav>
+
+<div class="hero">
+  <div class="hero-tag">AI-Powered Anemia Screening</div>
+  <h1>Know Your <em>Blood Health</em><br>Before It's Too Late</h1>
+  <p>Enter your clinical parameters below for instant AI-driven anemia risk analysis and personalized dietary guidance.</p>
+</div>
+
+<div class="form-container">
+  <div class="card" id="formCard">
+
+    <!-- Patient Info -->
+    <div class="section-label">Patient Information</div>
+    <div class="grid-2">
+      <div class="field">
+        <label>Full Name</label>
+        <input type="text" id="name" placeholder="Enter patient name">
+      </div>
+      <div class="field">
+        <label>Age</label>
+        <input type="number" id="age" placeholder="e.g. 28" min="1" max="120">
+      </div>
+      <div class="field">
+        <label>Gender</label>
+        <select id="gender">
+          <option value="">Select gender</option>
+          <option value="female">Female</option>
+          <option value="male">Male</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Pregnancy Status</label>
+        <select id="pregnancy">
+          <option value="no">Not Pregnant / N/A</option>
+          <option value="yes">Pregnant</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- CBC Parameters -->
+    <div class="section-label">CBC Parameters</div>
+    <div class="grid-3">
+      <div class="field">
+        <label>Hemoglobin (g/dL)</label>
+        <input type="number" id="hgb" placeholder="e.g. 12.5" step="0.1" min="1" max="25">
+        <div class="hint">Normal: F &gt;12, M &gt;13</div>
+      </div>
+      <div class="field">
+        <label>RBC Count (×10⁶/µL)</label>
+        <input type="number" id="rbc" placeholder="e.g. 4.5" step="0.01" min="1" max="8">
+        <div class="hint">Normal: 3.9 – 5.5</div>
+      </div>
+      <div class="field">
+        <label>MCV (fL)</label>
+        <input type="number" id="mcv" placeholder="e.g. 85" step="0.1" min="50" max="130">
+        <div class="hint">Normal: 80 – 100 fL</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Symptoms -->
+    <div class="section-label">Current Symptoms</div>
+    <div class="symptoms-grid" id="symptomsGrid">
+      <label class="symptom-check" onclick="toggleCheck(this)">
+        <input type="checkbox" value="fatigue">
+        <div class="dot"></div>
+        Fatigue
+      </label>
+      <label class="symptom-check" onclick="toggleCheck(this)">
+        <input type="checkbox" value="pallor">
+        <div class="dot"></div>
+        Pallor / Pale Skin
+      </label>
+      <label class="symptom-check" onclick="toggleCheck(this)">
+        <input type="checkbox" value="dizziness">
+        <div class="dot"></div>
+        Dizziness
+      </label>
+      <label class="symptom-check" onclick="toggleCheck(this)">
+        <input type="checkbox" value="shortness">
+        <div class="dot"></div>
+        Shortness of Breath
+      </label>
+      <label class="symptom-check" onclick="toggleCheck(this)">
+        <input type="checkbox" value="headache">
+        <div class="dot"></div>
+        Frequent Headaches
+      </label>
+      <label class="symptom-check" onclick="toggleCheck(this)">
+        <input type="checkbox" value="coldness">
+        <div class="dot"></div>
+        Cold Hands/Feet
+      </label>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Genetic / History -->
+    <div class="section-label">Genetic & Medical History</div>
+    <div class="genetic-grid" id="geneticGrid">
+      <label class="genetic-item" onclick="toggleCheck(this)">
+        <input type="checkbox" value="iron_deficiency">
+        <div class="dot"></div>
+        Iron Deficiency History
+      </label>
+      <label class="genetic-item" onclick="toggleCheck(this)">
+        <input type="checkbox" value="sickle_cell">
+        <div class="dot"></div>
+        Sickle Cell Trait
+      </label>
+      <label class="genetic-item" onclick="toggleCheck(this)">
+        <input type="checkbox" value="b12">
+        <div class="dot"></div>
+        Vitamin B12 Deficiency
+      </label>
+      <label class="genetic-item" onclick="toggleCheck(this)">
+        <input type="checkbox" value="folate">
+        <div class="dot"></div>
+        Folate Deficiency
+      </label>
+      <label class="genetic-item" onclick="toggleCheck(this)">
+        <input type="checkbox" value="hemolytic">
+        <div class="dot"></div>
+        Hemolytic Disorders
+      </label>
+      <label class="genetic-item" onclick="toggleCheck(this)">
+        <input type="checkbox" value="thalassemia">
+        <div class="dot"></div>
+        Thalassemia
+      </label>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Diet -->
+    <div class="section-label">Dietary Pattern</div>
+    <div class="field">
+      <label>Primary Diet</label>
+      <select id="diet">
+        <option value="balanced">Balanced (Mixed)</option>
+        <option value="vegetarian">Vegetarian</option>
+        <option value="vegan">Vegan</option>
+        <option value="low_iron">Low Iron Foods</option>
+        <option value="irregular">Irregular / Poor Diet</option>
+      </select>
+    </div>
+
+    <button class="btn-analyze" id="analyzeBtn" onclick="analyze()">
+      Analyze Blood Parameters →
+    </button>
+  </div>
+
+  <!-- Loader -->
+  <div class="card" id="loaderCard" style="display:none">
+    <div class="loader" style="display:block">
+      <div class="pulse-ring"></div>
+      <p id="loaderText">Analyzing CBC parameters...</p>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div class="card" id="resultCard" style="display:none">
+    <div class="result-section" id="resultSection" style="display:block">
+
+      <div class="result-header">
+        <div>
+          <div class="risk-badge" id="riskBadge">—</div>
+        </div>
+        <div>
+          <div class="result-title" id="resultTitle">—</div>
+          <div class="result-subtitle" id="resultSubtitle">—</div>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="metrics">
+        <div class="metric-card">
+          <div class="metric-val" id="mHgb">—</div>
+          <div class="metric-label">Hemoglobin g/dL</div>
+          <div class="metric-status" id="mHgbStatus">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val" id="mRbc">—</div>
+          <div class="metric-label">RBC ×10⁶/µL</div>
+          <div class="metric-status" id="mRbcStatus">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val" id="mMcv">—</div>
+          <div class="metric-label">MCV fL</div>
+          <div class="metric-status" id="mMcvStatus">—</div>
+        </div>
+      </div>
+
+      <!-- Gauge -->
+      <div class="gauge-wrap">
+        <div class="gauge-label">Risk Score</div>
+        <div class="gauge-track">
+          <div class="gauge-fill" id="gaugeFill"></div>
+        </div>
+        <div class="gauge-labels">
+          <span>No Risk</span>
+          <span>Low</span>
+          <span>Moderate</span>
+          <span>High</span>
+        </div>
+      </div>
+
+      <!-- Type -->
+      <div class="type-card" id="typeCard" style="display:none">
+        <h4 id="typeName">—</h4>
+        <p id="typeDesc">—</p>
+      </div>
+
+      <!-- Diet Recommendations -->
+      <div class="section-label" style="margin-top:28px">Dietary Recommendations</div>
+      <div class="diet-grid" id="dietGrid"></div>
+
+      <div class="disclaimer">
+        ⚠ This AI analysis is for screening purposes only and does not replace a qualified medical diagnosis. Please consult a healthcare professional for accurate diagnosis and treatment.
+      </div>
+
+      <button class="btn-reset" onclick="resetForm()">← Analyze Another Patient</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleCheck(el) {
+    el.classList.toggle('checked');
+    el.querySelector('input').checked = el.classList.contains('checked');
+  }
+
+  function getChecked(gridId) {
+    return [...document.querySelectorAll(`#${gridId} input:checked`)].map(i => i.value);
+  }
+
+  function analyze() {
+    const name = document.getElementById('name').value.trim();
+    const age = parseFloat(document.getElementById('age').value);
+    const gender = document.getElementById('gender').value;
+    const hgb = parseFloat(document.getElementById('hgb').value);
+    const rbc = parseFloat(document.getElementById('rbc').value);
+    const mcv = parseFloat(document.getElementById('mcv').value);
+    const pregnancy = document.getElementById('pregnancy').value;
+    const diet = document.getElementById('diet').value;
+
+    if (!hgb || !rbc || !mcv || !gender) {
+      alert('Please fill in Gender, Hemoglobin, RBC Count, and MCV to proceed.');
+      return;
+    }
+
+    const symptoms = getChecked('symptomsGrid');
+    const genetics = getChecked('geneticGrid');
+
+    document.getElementById('formCard').style.display = 'none';
+    document.getElementById('loaderCard').style.display = 'block';
+
+    const loaderTexts = [
+      'Analyzing CBC parameters...',
+      'Cross-referencing genetic history...',
+      'Calculating risk score...',
+      'Generating dietary plan...'
+    ];
+    let li = 0;
+    const loaderInterval = setInterval(() => {
+      li = (li + 1) % loaderTexts.length;
+      document.getElementById('loaderText').textContent = loaderTexts[li];
+    }, 700);
+
+    setTimeout(() => {
+      clearInterval(loaderInterval);
+      document.getElementById('loaderCard').style.display = 'none';
+      const result = computeResult(gender, hgb, rbc, mcv, symptoms, genetics, diet, pregnancy, age);
+      renderResult(result, { hgb, rbc, mcv, name });
+      document.getElementById('resultCard').style.display = 'block';
+    }, 2800);
+  }
+
+  function computeResult(gender, hgb, rbc, mcv, symptoms, genetics, diet, pregnancy, age) {
+    let score = 0;
+
+    // Hemoglobin thresholds
+    const hgbLow = (gender === 'female' || pregnancy === 'yes') ? 12 : 13;
+    if (hgb < hgbLow - 3) score += 40;
+    else if (hgb < hgbLow - 1.5) score += 25;
+    else if (hgb < hgbLow) score += 12;
+
+    // Pregnancy
+    if (pregnancy === 'yes') score += 8;
+
+    // RBC
+    const rbcLow = gender === 'female' ? 3.9 : 4.3;
+    if (rbc < rbcLow - 0.8) score += 20;
+    else if (rbc < rbcLow) score += 10;
+
+    // MCV
+    if (mcv < 70) score += 20;
+    else if (mcv < 80) score += 10;
+    else if (mcv > 100) score += 8;
+
+    // Symptoms
+    score += symptoms.length * 5;
+
+    // Genetics
+    score += genetics.length * 7;
+
+    // Diet
+    if (diet === 'vegan') score += 8;
+    else if (diet === 'vegetarian') score += 5;
+    else if (diet === 'low_iron' || diet === 'irregular') score += 12;
+
+    // Age
+    if (age < 5 || age > 65) score += 5;
+
+    score = Math.min(score, 100);
+
+    let risk, riskClass, title, subtitle;
+    if (score < 15) {
+      risk = 'No Anemia'; riskClass = 'none';
+      title = 'No Significant Anemia Risk';
+      subtitle = 'Your blood parameters are within normal range. Maintain a balanced diet and schedule periodic checkups.';
+    } else if (score < 40) {
+      risk = 'Low Risk'; riskClass = 'low';
+      title = 'Low Anemia Risk Detected';
+      subtitle = 'Mild indicators present. Monitor your health, improve diet, and recheck within 3 months.';
+    } else if (score < 65) {
+      risk = 'Moderate Risk'; riskClass = 'moderate';
+      title = 'Moderate Anemia Risk';
+      subtitle = 'Several risk factors detected. Consult a physician and start dietary improvements immediately.';
+    } else {
+      risk = 'High Risk'; riskClass = 'high';
+      title = 'High Anemia Risk — Medical Attention Needed';
+      subtitle = 'Critical blood parameter levels. Please visit a hematologist for full diagnostic workup.';
+    }
+
+    // Classify anemia type
+    let type = null, typeDesc = null;
+    if (score >= 15) {
+      if (genetics.includes('sickle_cell')) {
+        type = 'Sickle Cell Anemia';
+        typeDesc = 'Genetic condition causing abnormally shaped red blood cells that break down prematurely, reducing oxygen delivery.';
+      } else if (genetics.includes('thalassemia') || (mcv < 78 && rbc > 4.5)) {
+        type = 'Thalassemia-Related Anemia';
+        typeDesc = 'Inherited blood disorder reducing hemoglobin production, characterized by microcytic red blood cells.';
+      } else if (mcv > 100 || genetics.includes('b12') || genetics.includes('folate')) {
+        type = genetics.includes('folate') ? 'Folate Deficiency Anemia' : 'Vitamin B12 Deficiency Anemia';
+        typeDesc = 'Macrocytic anemia caused by deficiency of B12/folate, impairing red blood cell maturation in bone marrow.';
+      } else if (genetics.includes('hemolytic')) {
+        type = 'Hemolytic Anemia';
+        typeDesc = 'Red blood cells are destroyed faster than they can be produced, often triggered by immune or genetic factors.';
+      } else {
+        type = 'Iron Deficiency Anemia';
+        typeDesc = 'Most common form globally. Low iron stores reduce hemoglobin synthesis, causing microcytic hypochromic anemia.';
+      }
+    }
+
+    return { risk, riskClass, title, subtitle, score, type, typeDesc };
+  }
+
+  function renderResult(result, inputs) {
+    // Badge
+    const badge = document.getElementById('riskBadge');
+    badge.textContent = result.risk;
+    badge.className = `risk-badge badge-${result.riskClass}`;
+
+    document.getElementById('resultTitle').textContent = result.title;
+    document.getElementById('resultSubtitle').textContent = result.subtitle;
+
+    // Metrics
+    const gender = document.getElementById('gender').value;
+    const hgbLow = gender === 'female' ? 12 : 13;
+    document.getElementById('mHgb').textContent = inputs.hgb;
+    document.getElementById('mHgb').style.color = inputs.hgb < hgbLow ? 'var(--high)' : 'var(--low)';
+    document.getElementById('mHgbStatus').textContent = inputs.hgb < hgbLow ? '↓ Below Normal' : '✓ Normal';
+    document.getElementById('mHgbStatus').className = `metric-status ${inputs.hgb < hgbLow ? 'status-low' : 'status-normal'}`;
+
+    document.getElementById('mRbc').textContent = inputs.rbc;
+    const rbcNormal = inputs.rbc >= 3.9 && inputs.rbc <= 5.5;
+    document.getElementById('mRbc').style.color = rbcNormal ? 'var(--low)' : 'var(--high)';
+    document.getElementById('mRbcStatus').textContent = rbcNormal ? '✓ Normal' : '↓ Low';
+    document.getElementById('mRbcStatus').className = `metric-status ${rbcNormal ? 'status-normal' : 'status-low'}`;
+
+    document.getElementById('mMcv').textContent = inputs.mcv;
+    const mcvOk = inputs.mcv >= 80 && inputs.mcv <= 100;
+    document.getElementById('mMcv').style.color = mcvOk ? 'var(--low)' : inputs.mcv > 100 ? 'var(--moderate)' : 'var(--high)';
+    document.getElementById('mMcvStatus').textContent = mcvOk ? '✓ Normal' : inputs.mcv > 100 ? '↑ High (Macrocytic)' : '↓ Low (Microcytic)';
+    document.getElementById('mMcvStatus').className = `metric-status ${mcvOk ? 'status-normal' : 'status-low'}`;
+
+    // Gauge
+    const fill = document.getElementById('gaugeFill');
+    fill.className = `gauge-fill fill-${result.riskClass}`;
+    setTimeout(() => { fill.style.width = result.score + '%'; }, 100);
+
+    // Type
+    if (result.type) {
+      document.getElementById('typeCard').style.display = 'block';
+      document.getElementById('typeName').textContent = 'Probable Type: ' + result.type;
+      document.getElementById('typeDesc').textContent = result.typeDesc;
+    } else {
+      document.getElementById('typeCard').style.display = 'none';
+    }
+
+    // Diet plan
+    const dietPlans = getDietPlan(result.riskClass, result.type);
+    const grid = document.getElementById('dietGrid');
+    grid.innerHTML = dietPlans.map(d => `
+      <div class="diet-item">
+        <div class="icon">${d.icon}</div>
+        <h5>${d.title}</h5>
+        <p>${d.desc}</p>
+      </div>
+    `).join('');
+  }
+
+  function getDietPlan(risk, type) {
+    const ironFoods = {
+      icon: '🥩',
+      title: 'Iron-Rich Foods',
+      desc: 'Include spinach, lentils, red meat, tofu, pumpkin seeds, and fortified cereals daily.'
+    };
+    const vitC = {
+      icon: '🍋',
+      title: 'Vitamin C Boost',
+      desc: 'Pair iron foods with citrus fruits, bell peppers, or tomatoes to enhance iron absorption by up to 3x.'
+    };
+    const b12Foods = {
+      icon: '🥚',
+      title: 'Vitamin B12 Sources',
+      desc: 'Eggs, dairy, fish, fortified plant milk and nutritional yeast are excellent B12 sources.'
+    };
+    const folate = {
+      icon: '🥦',
+      title: 'Folate-Rich Diet',
+      desc: 'Dark leafy greens (kale, broccoli), legumes, avocado, and fortified grains boost folate levels.'
+    };
+    const hydration = {
+      icon: '💧',
+      title: 'Stay Hydrated',
+      desc: 'Adequate water intake supports healthy blood volume and nutrient transport throughout the body.'
+    };
+    const avoid = {
+      icon: '🚫',
+      title: 'Foods to Limit',
+      desc: 'Avoid tea, coffee, and calcium-rich foods within 1–2 hours of iron-rich meals as they inhibit absorption.'
+    };
+    const protein = {
+      icon: '🫘',
+      title: 'Complete Proteins',
+      desc: 'Include legumes, quinoa, eggs or lean meat for amino acids needed in hemoglobin synthesis.'
+    };
+    const supplements = {
+      icon: '💊',
+      title: 'Supplement Guidance',
+      desc: 'Discuss iron, B12, or folate supplements with your doctor based on confirmed deficiency levels.'
+    };
+
+    if (risk === 'none') return [ironFoods, folate, vitC, hydration];
+    if (type && type.includes('B12')) return [b12Foods, folate, vitC, hydration];
+    if (type && type.includes('Folate')) return [folate, b12Foods, protein, hydration];
+    if (type && type.includes('Sickle') || type && type.includes('Hemolytic')) return [folate, b12Foods, hydration, protein];
+    return [ironFoods, vitC, folate, avoid, hydration, supplements];
+  }
+
+  function resetForm() {
+    document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('formCard').style.display = 'block';
+    document.getElementById('gaugeFill').style.width = '0';
+  }
+</script>
+</body>
+</html>
