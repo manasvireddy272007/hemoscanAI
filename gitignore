@@ -1,0 +1,8 @@
+# IMPORTANT: Never commit secrets to GitHub
+.env
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+venv/
+.venv/
